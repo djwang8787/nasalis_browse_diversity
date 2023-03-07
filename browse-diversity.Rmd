@@ -1,0 +1,455 @@
+---
+title: "Novel insights in browse preferences in proboscis monkeys."
+output:
+  pdf_document: default
+  html_document: default
+date: "2022-12-01"
+editor_options:
+  chunk_output_type: console
+  markdown: 
+    wrap: sentence
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+pacman::p_load(dplyr, ggplot2, randomForest, lme4, lubridate, MuMIn, vegan, reshape2, reshape)
+source("browse-diversity-analysis.R")
+```
+
+### Overview
+
+```{r pm-overview, echo = F}
+# days of observation per individual
+pm.overview = pm.overview %>%
+  mutate(Shannons = round(Shannons, digit = 3),
+         Simpsons = round(Simpsons, digit = 3),
+         FNB = round(FNB, digits = 3),
+         Ketapung = Ketapung,
+         Total = Total,
+         Age = Age,
+         Sex = Sex)
+knitr::kable(pm.overview,
+             booktabs = T,
+             caption = "Overview Table x.xx")
+```
+
+Data collection:
+
+-   Consumption is determined by bite counts per individual browse species by individual monkey
+
+-   Order of observed monkey is random but split evenly across stipulated sampling duration (n = 40 days)
+
+-   Observations were only conducted during the 'first' feeding session in the morning (8.30 am to 9 am) and within the first 30 minutes.
+
+-   All browses provided were fresh in quality
+
+-   Browse provision (in terms of species offered) was random except for the 100% provision of ketapung and miracle (see Figure 1); species within browse bundles are randomly assigned.
+
+-   Missing data were imputated with the in-built function of random forest algorithms.
+
+-   Browse preference is "inferred" from importance (via random forest models) within diversity and consumption indexes.
+
+-   Diversity indexes (n = 3; Figures 3--5) used are: Shannons, Simpsons and Food niche breadth.
+
+-   Consumption indexes (n = 2; Figures 6 and 7) used are: total leaves consumed (regardless of species) and ketapung species only.
+
+### Spreads/Distribution
+
+```{r browse-avail, echo = F, fig.cap="The spread (availability) of browse distribution across the sampling period (n = 39 days/sessions)."}
+browse.d %>%
+  ggplot(., aes(x = reorder(Browse.Species, prop), y = prop)) +
+  geom_bar(stat = 'identity') +
+  theme_minimal() +
+  xlab("Browse species") +
+  ylab("Browse availability (%)")+
+  coord_flip() 
+```
+
+```{r consumed-avail, echo = F, fig.cap="The spread of browse consumption across the sampling period (n = 39 days/sessions)"}
+consumed.d %>%
+  ggplot(., aes(x = reorder(Browse.Species, consume.prop), y = consume.prop)) +
+  geom_bar(stat = 'identity') +
+  theme_minimal() +
+  xlab("Browse species") +
+  ylab("Browse consumed (%)")+
+  coord_flip() 
+```
+
+\newpage
+
+### Variable importance of each browse by indexes
+
+Some notes on RF model importance:
+
+-   All models are regression models.
+
+-   Negative value predictors have no influence on response variable (i.e., diversity and consumption index; see Figure 3--7)
+
+-   Residuals are an indicator of prediction error rates; lower residuals are better
+
+-   Importance on the x-axis determines %change in prediction; for e.g., removing miracle would result in a 10% decrease in accuracy in predicting H-index, see Figure 3
+
+-   Thus, greater importance means greater weight in improving the response variable (e.g., increase in H / D / FNC / Consumption index).
+
+-   Node purity decides variance in the removal of said predictor; at the moment, not really important.
+
+```{r H-fig, echo = F, fig.cap = "Variable importance plot by H-index / Shannons. Residuals: 0.18."}
+ggplot(H.ImpData, aes(x=reorder(Var.Names, `%IncMSE`), y=`%IncMSE`)) +
+  geom_segment( aes(x=reorder(Var.Names, `%IncMSE`), xend=Var.Names, y=0, yend=`%IncMSE`), color="skyblue") +
+  geom_point(aes(size = IncNodePurity), color="blue", alpha=0.6) +
+  theme_light() +
+  coord_flip() +
+  theme(
+    legend.position="bottom",
+    panel.grid.major.y = element_blank(),
+    panel.border = element_blank(),
+    axis.ticks.y = element_blank()
+  ) +
+  ylab("Importance") + 
+  xlab("Browse species")
+```
+
+My interpretation / results:
+
+-   Across diversity and consumption indexes, ID (i.e., id of individual monkey) continually holds a high importance in each model; inter-individual variability plays a huge role.
+
+-   Availability has confounding influence on consumption; miracle is always provided and always consumed (hence high on the importance chart) but not the same for Saga (Figure 3--5).
+
+-   The consumption of ketapung is interesting (see Figure 7); the inclusion of high importance species (positive values: e.g., khaya, angsana, lobi; see Figure 7) results in a greater consumption of ketapung
+
+-   conversely, the inclusion of low importance species (negative values: miracle, ficus; see Figure 7) would then lead to a decrease in ketapung consumed.
+
+```{r D-fig, echo = F, fig.cap = "Variable importance plot by D-index / Simpsons. Residuals: 0.05."}
+ggplot(D.ImpData, aes(x=reorder(Var.Names, `%IncMSE`), y=`%IncMSE`)) +
+  geom_segment( aes(x=reorder(Var.Names, `%IncMSE`), xend=Var.Names, y=0, yend=`%IncMSE`), color="skyblue") +
+  geom_point(aes(size = IncNodePurity), color="blue", alpha=0.6) +
+  theme_light() +
+  coord_flip() +
+  theme(
+    legend.position="bottom",
+    panel.grid.major.y = element_blank(),
+    panel.border = element_blank(),
+    axis.ticks.y = element_blank()
+  ) +
+  ylab("Importance") + 
+  xlab("Browse species")
+```
+
+Moving forward:
+
+-   I've discussed with Dr Shangz about the scope of the work and we feel that more can be done if nutritional composition is included. Here, I proposed PCA to examine how the ranks of certain browse species (when grouped) explains their importance in improving the diversity and/or consumption index.
+
+-   On a secondary note, the identification of individual variability in the current work is not surprising, and can be further explored / written as a manuscript?
+    We both believe it has some relevance to other institutes/collection.
+    For e.g, other zoo managers will need to do their own browse preference studies to properly identify what "works best" for their collection.
+
+-   That said, I am unsure if I can write this up on my own and I would gladly accept any form of help on this, if possible.
+
+-   I am also accepting any feedback on the research done today.
+    There are two more days of data to analyse (i.e., 1st and 2nd Dec) and I'm waiting for Geraldene to get back to me on those observation.
+
+```{r FNB-fig, echo = F, fig.cap = "Variable importance plot by Food Niche Breadth. Residuals: 0.01."}
+ggplot(FNB.ImpData, aes(x=reorder(Var.Names, `%IncMSE`), y=`%IncMSE`)) +
+  geom_segment( aes(x=reorder(Var.Names, `%IncMSE`), xend=Var.Names, y=0, yend=`%IncMSE`), color="skyblue") +
+  geom_point(aes(size = IncNodePurity), color="blue", alpha=0.6) +
+  theme_light() +
+  coord_flip() +
+  theme(
+    legend.position="bottom",
+    panel.grid.major.y = element_blank(),
+    panel.border = element_blank(),
+    axis.ticks.y = element_blank()
+  ) +
+  ylab("Importance") + 
+  xlab("Browse species")
+```
+
+```{r TC-fig, echo = F, fig.cap = "Variable importance plot by total consumption. Residuals: 119"}
+ggplot(tc.ImpData, aes(x=reorder(Var.Names, `%IncMSE`), y=`%IncMSE`)) +
+  geom_segment( aes(x=reorder(Var.Names, `%IncMSE`), xend=Var.Names, y=0, yend=`%IncMSE`), color="skyblue") +
+  geom_point(aes(size = IncNodePurity), color="blue", alpha=0.6) +
+  theme_light() +
+  coord_flip() +
+  theme(
+    legend.position="bottom",
+    panel.grid.major.y = element_blank(),
+    panel.border = element_blank(),
+    axis.ticks.y = element_blank()
+  ) +
+  ylab("Importance") + 
+  xlab("Browse species")
+```
+
+```{r KTP-fig, echo = F, fig.cap = "Variable importance plot by Ketapung consumption. Residuals: 57"}
+ktp.ImpData %>%
+ggplot(., aes(x=reorder(Var.Names, `%IncMSE`), y=`%IncMSE`)) +
+  geom_segment( aes(x=reorder(Var.Names, `%IncMSE`), xend=Var.Names, y=0, yend=`%IncMSE`), color="skyblue") +
+  geom_point(aes(size = IncNodePurity), color="blue", alpha=0.6) +
+  theme_light() +
+  coord_flip() +
+  theme(
+    legend.position="bottom",
+    panel.grid.major.y = element_blank(),
+    panel.border = element_blank(),
+    axis.ticks.y = element_blank()
+  ) +
+  ylab("Importance") + 
+  xlab("Browse species")
+```
+
+### Date: 2nd December 2022; without the mass data imputation
+
+```{r lmer-analysis, echo = F}
+rf.data$browse.size = 24-(rowSums(is.na(rf.data)))-1
+null.model = lmer(total~ 1 + (1|ID) + (1|Session),
+            data = rf.data)
+H.only = lmer(total~ H  + (1|ID) + (1|Session),
+            data = rf.data)
+D.only = lmer(total~ D + (1|ID) + (1|Session),
+            data = rf.data)
+FNB.only = lmer(total~ fnb + (1|ID)+ (1|Session),
+            data = rf.data)
+bundlesize.only = lmer(total~browse.size + (1|ID)+ (1|Session),
+            data = rf.data)
+bundle.FNB = lmer(total~browse.size + fnb + (1|ID)+ (1|Session),
+            data = rf.data)
+bundle.H = lmer(total~browse.size + H + (1|ID) + (1|Session),
+            data = rf.data)
+bundle.D = lmer(total~browse.size + D + (1|ID) + (1|Session),
+            data = rf.data)
+ktp.only = lmer(total~Ketapung + (1|ID) + (1|Session),
+                data = rf.data)
+bundle.ktp = lmer(total~Ketapung + browse.size + (1|ID) + (1|Session),
+                  data = rf.data)
+session.only = lmer(total~Session + (1|ID) + (1|Session),
+                    data = rf.data)
+
+model.sel(null.model, H.only, D.only, FNB.only, 
+          bundlesize.only, bundle.FNB, bundle.H, 
+          bundle.D, bundle.ktp, ktp.only, session.only)
+
+# Does it make sense? here are we seeing how different diversity indexes are best at explaining the monkey's total consumption of leaves.
+
+# tcm3 / fnb model best explains TC
+# every increase in fnb leads to a 47.16 increase in browse consumption
+```
+
+-   Based on model selection analysis, the bundle.fnb model is the most parsimonious model that explains total consumption in the proboscis monkeys.
+    Here, individual IDs (n = 7) are used as error terms, which accounts for individual slopes.
+
+-   Based on the summary output, a linear increase FNB results in an increase in total leaves consumed (by 49 counts).
+
+    -   In contrast, the negative coefficients for browse size simply suggest that every increase in bundle size will lead to a small decrease in total leaves consumed (by -0.9 counts).
+
+    -   Thankfully, we are also seeing low collinearity between bundle size and FNB (VIF\> 3) as well as low correlation (0.13).
+
+    -   Therefore, higher FNB explains higher consumption rate than the other diversity indexes.
+
+    -   FNB does a good job in addressing present-but-not-consumed browses unlike the other diversity indexes
+
+```{r summary bundle.d, echo = F}
+bundle.FNB
+```
+
+```{r collinearity between indexes, echo = F}
+performance::check_collinearity(bundle.FNB)
+## low collinearity between fnb, H and D
+```
+
+```{r collinearity within FNB browses, include = F}
+# Dodgy right now with the imputed data
+# Exclude.
+fnb.colli = lmer(fnb ~ Acacia + Angsana + Eugenia + Asam.Jawa + Belimbing
+              + Chiku + Cinnamon + Ficus + Hibiscus + Jambu + Ketapung 
+              + Khaya + Lobi + Longan + Madras.Thorn + Malayan.Cherry 
+              + Mango + Mangosteen + Miracle + Raintree + Saga + Starfruit 
+              + Tapioca + (1|ID),
+               data = fnb.data)
+
+performance::check_collinearity(fnb.colli)
+plot(performance::check_collinearity(fnb.colli))
+```
+
+```{r hotcode-fnb, echo = F, fig.cap = "Variable importance plot by FNB. Residuals: 0.001"}
+# To hot code absence and presence of browse consumption
+# to examine the presence of certain browses improving FNB scores
+hotcode.fnb = rf.data %>%
+  mutate(Acacia = ifelse(Acacia > 0, "yes", "no"),
+         Angsana = ifelse(Angsana > 0, "yes", "no"),
+         Asam.Jawa = ifelse(Asam.Jawa > 0, "yes", "no"),
+         Belimbing = ifelse(Belimbing > 0, "yes", "no"),
+         Chiku = ifelse(Chiku > 0, "yes", "no"),
+         Cinnamon = ifelse(Cinnamon > 0, "yes", "no"),
+         Eugenia = ifelse(Eugenia > 0, "yes", "no"),
+         Ficus = ifelse(Ficus > 0, "yes", "no"),
+         Hibiscus = ifelse(Hibiscus > 0, "yes", "no"),
+         Jambu = ifelse(Jambu > 0, "yes", "no"),
+         Ketapung = ifelse(Ketapung > 0, "yes", "no"),
+         Khaya = ifelse(Khaya > 0, "yes", "no"),
+         Lobi = ifelse(Lobi > 0, "yes", "no"),
+         Longan = ifelse(Longan > 0, "yes", "no"),
+         Madras.Thorn = ifelse(Madras.Thorn > 0, "yes", "no"),
+         Malayan.Cherry = ifelse(Malayan.Cherry > 0, "yes", "no"),
+         Mango = ifelse(Mango > 0, "yes", "no"),
+         Mangosteen = ifelse(Mangosteen > 0, "yes", "no"),
+         Miracle = ifelse(Miracle > 0, "yes", "no"),
+         Mulberry = ifelse(Mulberry > 0, "yes", "no"),
+         Raintree = ifelse(Raintree > 0, "yes", "no"),
+         Saga = ifelse(Saga > 0, "yes", "no"),
+         Starfruit = ifelse(Starfruit > 0, "yes", "no"),
+         Tapioca = ifelse(Tapioca > 0, "yes", "no"))
+
+hotcode.fnb[is.na(hotcode.fnb)] <- "Absent"
+
+hotcode.fnb = hotcode.fnb %>%
+    mutate(across(c(Acacia:Tapioca), ~factor(.x, c("yes", "no", "Absent"), levels = c("yes", "no", "Absent"))))
+
+set.seed(2807)
+hotcode.fnb.model = hotcode.fnb %>%
+  select(-H, -NV, -Leaves, -D, -total) %>%
+  randomForest(fnb ~., 
+               data = .,
+               mtry = sqrt(ncol(.)),
+               method = "regression", 
+               ntree = 501,
+               importance = TRUE)
+
+hotcode.fnb.ImpData <- as.data.frame(randomForest::importance(hotcode.fnb.model))
+hotcode.fnb.ImpData$Var.Names <- row.names(hotcode.fnb.ImpData)
+
+ggplot(hotcode.fnb.ImpData, aes(x=reorder(Var.Names, `%IncMSE`), y=`%IncMSE`)) +
+  geom_segment( aes(x=reorder(Var.Names, `%IncMSE`), xend=Var.Names, y=0, yend=`%IncMSE`), color="skyblue") +
+  geom_point(aes(size = IncNodePurity), color="blue", alpha=0.6) +
+  theme_light() +
+  coord_flip() +
+  theme(
+    legend.position="bottom",
+    panel.grid.major.y = element_blank(),
+    panel.border = element_blank(),
+    axis.ticks.y = element_blank())+
+  ylab("Importance") + 
+  xlab("Browse species")
+
+# Browses that plays a more important role in increasing FNB than individual variability (ID) are miracle, angsana, mango, raintree, eugenia and ficus
+```
+
+```{r hotcode fnb2, echo = F}
+hotcode.fnb = rf.data %>%
+  mutate(Acacia_is_absent = ifelse(is.na(Acacia), "yes", "no"),
+         Angsana_is_absent = ifelse(is.na(Angsana), "yes", "no"),
+         Asam.Jawa_is_absent = ifelse(is.na(Asam.Jawa), "yes", "no"),
+         Belimbing_is_absent = ifelse(is.na(Belimbing), "yes", "no"),
+         Chiku_is_absent = ifelse(is.na(Chiku), "yes", "no"),
+         Cinnamon_is_absent = ifelse(is.na(Cinnamon), "yes", "no"),
+         Eugenia_is_absent = ifelse(is.na(Eugenia), "yes", "no"),
+         Ficus_is_absent = ifelse(is.na(Ficus), "yes", "no"),
+         Hibiscus_is_absent = ifelse(is.na(Hibiscus), "yes", "no"),
+         Jambu_is_absent = ifelse(is.na(Jambu), "yes", "no"),
+         Ketapung_is_absent = ifelse(is.na(Ketapung), "yes", "no"),
+         Khaya_is_absent = ifelse(is.na(Khaya), "yes", "no"),
+         Lobi_is_absent = ifelse(is.na(Lobi), "yes", "no"),
+         Longan_is_absent = ifelse(is.na(Longan), "yes", "no"),
+         Madras.Thorn_is_absent = ifelse(is.na(Madras.Thorn), "yes", "no"),
+         Malayan.Cherry_is_absent = ifelse(is.na(Malayan.Cherry), "yes", "no"),
+         Mango_is_absent = ifelse(is.na(Mango), "yes", "no"),
+         Mangosteen_is_absent = ifelse(is.na(Mangosteen), "yes", "no"),
+         Miracle_is_absent = ifelse(is.na(Miracle), "yes", "no"),
+         Mulberry_is_absent = ifelse(is.na(Mulberry), "yes", "no"),
+         Raintree_is_absent = ifelse(is.na(Raintree), "yes", "no"),
+         Saga_is_absent = ifelse(is.na(Saga), "yes", "no"),
+         Starfruit_is_absent = ifelse(is.na(Starfruit), "yes", "no"),
+         Tapioca_is_absent = ifelse(is.na(Tapioca), "yes", "no"))
+
+hotcode.fnb = hotcode.fnb %>%
+  mutate(Acacia_is_offered = ifelse(Acacia_is_absent == "no", "yes", "no"),
+         Angsana_is_offered = ifelse(Angsana_is_absent == "no", "yes", "no"),
+         Asam.Jawa_is_offered = ifelse(Asam.Jawa_is_absent == "no", "yes", "no"),
+         Belimbing_is_offered = ifelse(Belimbing_is_absent == "no", "yes", "no"),
+         Chiku_is_offered = ifelse(Chiku_is_absent == "no", "yes", "no"),
+         Cinnamon_is_offered = ifelse(Cinnamon_is_absent == "no", "yes", "no"),
+         Eugenia_is_offered = ifelse(Eugenia_is_absent == "no", "yes", "no"),
+         Ficus_is_offered = ifelse(Ficus_is_absent == "no", "yes", "no"),
+         Hibiscus_is_offered = ifelse(Hibiscus_is_absent == "no", "yes", "no"),
+         Jambu_is_offered = ifelse(Jambu_is_absent == "no", "yes", "no"),
+         Ketapung_is_offered = ifelse(Ketapung_is_absent == "no", "yes", "no"),
+         Khaya_is_offered = ifelse(Khaya_is_absent == "no", "yes", "no"),
+         Lobi_is_offered = ifelse(Lobi_is_absent == "no", "yes", "no"),
+         Longan_is_offered = ifelse(Longan_is_absent == "no", "yes", "no"),
+         Madras.Thorn_is_offered = ifelse(Madras.Thorn_is_absent == "no", "yes", "no"),
+         Malayan.Cherry_is_offered = ifelse(Malayan.Cherry_is_absent == "no", "yes", "no"),
+         Mango_is_offered = ifelse(Mango_is_absent == "no", "yes", "no"),
+         Mangosteen_is_offered = ifelse(Mangosteen_is_absent == "no", "yes", "no"),
+         Miracle_is_offered = ifelse(Miracle_is_absent == "no", "yes", "no"),
+         Mulberry_is_offered = ifelse(Mulberry_is_absent == "no", "yes", "no"),
+         Raintree_is_offered = ifelse(Raintree_is_absent == "no", "yes", "no"),
+         Saga_is_offered = ifelse(Saga_is_absent == "no", "yes", "no"),
+         Starfruit_is_offered = ifelse(Starfruit_is_absent == "no", "yes", "no"),
+         Tapioca_is_offered = ifelse(Tapioca_is_absent == "no", "yes", "no"))
+
+
+hotcode.fnb = hotcode.fnb %>%
+  mutate(
+         Acacia_is_consumed = ifelse(Acacia  > 0, "yes", "no"),
+         Angsana_is_consumed = ifelse(Angsana  > 0, "yes", "no"),
+         Asam.Jawa_is_consumed = ifelse(Asam.Jawa  > 0, "yes", "no"),
+         Belimbing_is_consumed = ifelse(Belimbing  > 0, "yes", "no"),
+         Chiku_is_consumed = ifelse(Chiku  > 0, "yes", "no"),
+         Cinnamon_is_consumed = ifelse(Cinnamon  > 0, "yes", "no"),
+         Eugenia_is_consumed = ifelse(Eugenia  > 0, "yes", "no"),
+         Ficus_is_consumed = ifelse(Ficus  > 0, "yes", "no"),
+         Hibiscus_is_consumed = ifelse(Hibiscus  > 0, "yes", "no"),
+         Jambu_is_consumed = ifelse(Jambu  > 0, "yes", "no"),
+         Ketapung_is_consumed = ifelse(Ketapung  > 0, "yes", "no"),
+         Khaya_is_consumed = ifelse(Khaya  > 0, "yes", "no"),
+         Lobi_is_consumed = ifelse(Lobi  > 0, "yes", "no"),
+         Longan_is_consumed = ifelse(Longan  > 0, "yes", "no"),
+         Madras.Thorn_is_consumed = ifelse(Madras.Thorn  > 0, "yes", "no"),
+         Malayan.Cherry_is_consumed = ifelse(Malayan.Cherry  > 0, "yes", "no"),
+         Mango_is_consumed = ifelse(Mango  > 0, "yes", "no"),
+         Mangosteen_is_consumed = ifelse(Mangosteen  > 0, "yes", "no"),
+         Miracle_is_consumed = ifelse(Miracle  > 0, "yes", "no"),
+         Mulberry_is_consumed = ifelse(Mulberry  > 0, "yes", "no"),
+         Raintree_is_consumed = ifelse(Raintree  > 0, "yes", "no"),
+         Saga_is_consumed = ifelse(Saga  > 0, "yes", "no"),
+         Starfruit_is_consumed = ifelse(Starfruit  > 0, "yes", "no"),
+         Tapioca_is_consumed = ifelse(Tapioca  > 0, "yes", "no"))
+
+hotcode.fnb[is.na(hotcode.fnb)] <- "no"
+
+set.seed(2807)
+hotcode.fnb.model = hotcode.fnb %>%
+  select(-H, -NV, -Leaves, -D, -total,
+         -c(Acacia, Angsana, Asam.Jawa, Belimbing, Chiku,
+            Cinnamon, Eugenia, Ficus, Hibiscus, Jambu,
+            Ketapung, Khaya, Lobi, Longan, Madras.Thorn,
+            Malayan.Cherry, Mangosteen, Miracle, Mulberry, Raintree,
+            Saga, Starfruit, Tapioca, Mango)) %>%
+  randomForest(fnb ~., 
+               data = .,
+               mtry = sqrt(ncol(.)),
+               method = "regression", 
+               ntree = 501,
+               importance = TRUE)
+
+hotcode.fnb.ImpData <- as.data.frame(randomForest::importance(hotcode.fnb.model))
+hotcode.fnb.ImpData$Var.Names <- row.names(hotcode.fnb.ImpData)
+
+ggplot(hotcode.fnb.ImpData, aes(x=reorder(Var.Names, `%IncMSE`), y=`%IncMSE`)) +
+  geom_segment( aes(x=reorder(Var.Names, `%IncMSE`), xend=Var.Names, y=0, yend=`%IncMSE`), color="skyblue") +
+  geom_point(aes(size = IncNodePurity), color="blue", alpha=0.6) +
+  theme_light() +
+  coord_flip() +
+  theme(
+    legend.position="bottom",
+    panel.grid.major.y = element_blank(),
+    panel.border = element_blank(),
+    axis.ticks.y = element_blank())+
+  ylab("Importance") + 
+  xlab("Browse species")
+# Browses that plays a more important role in increasing FNB than individual variability (ID) are miracle, angsana, mango, raintree, eugenia and ficus
+```
+
+
+```{r}
+
+```
